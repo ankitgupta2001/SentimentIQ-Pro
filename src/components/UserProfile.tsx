@@ -11,7 +11,7 @@ const UserProfile: React.FC = () => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
-  // Don't render anything if user is null or loading
+  // Show loading state while user is being determined
   if (!user) {
     return (
       <div className="flex items-center space-x-3">
@@ -138,9 +138,13 @@ const UserProfile: React.FC = () => {
               </button>
               
               <button
-                onClick={() => {
-                  logout();
-                  setShowDropdown(false);
+                onClick={async () => {
+                  try {
+                    await logout();
+                    setShowDropdown(false);
+                  } catch (error) {
+                    console.error('Logout failed:', error);
+                  }
                 }}
                 className="w-full flex items-center space-x-2 px-3 py-2 text-left hover:bg-red-50 rounded-lg transition-colors text-red-600"
               >

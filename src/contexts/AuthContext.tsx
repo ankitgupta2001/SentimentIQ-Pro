@@ -7,6 +7,7 @@ interface AuthContextType extends AuthState {
   register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => void;
   switchToGuest: () => void;
+  updateUserTier: (tier: 'standard' | 'pro') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -133,6 +134,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         } catch (error) {
           console.error('❌ Failed to get user after sign in:', error);
+          if (mounted) {
+            dispatch({ type: 'SET_GUEST' });
+          }
         }
       } else if (event === 'SIGNED_OUT') {
         console.log('ℹ️ User signed out, switching to guest');
@@ -222,13 +226,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'SET_GUEST' });
   };
 
+  const updateUserTier = async (tier: 'standard' | 'pro') => {
+    if (!state.user || state.user.tier === 'guest') {
+      throw new Error('User must be authenticated to update tier');
+    }
+
+    try {
+      console.log('🔄 Updating user tier from', state.user.tier, 'to', tier);
+      
+      const updatedUser = await authService.updateProfile({ tier });
+      dispatch({ type: 'SET_USER', payload: updatedUser });
+      
+      console.log('✅ User tier updated successfully to:', tier);
+    } catch (error) {
+      console.error('❌ Failed to update user tier:', error);
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       ...state,
       login,
       register,
       logout,
-      switchToGuest
+      switchToGuest,
+      updateUserTier
     }}>
       {children}
     </AuthContext.Provider>

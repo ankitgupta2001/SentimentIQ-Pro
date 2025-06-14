@@ -19,8 +19,8 @@ const TierUpgrade: React.FC<TierUpgradeProps> = ({ currentTier, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [planStats, setPlanStats] = useState<PlanStats>({ standard: 0, pro: 0 });
-  const { user, login } = useAuth();
+  const [planStats, setPlanStats] = useState<PlanStats>({ standard: 65, pro: 35 });
+  const { user, updateUserTier } = useAuth();
 
   // Fetch plan statistics to determine most popular
   useEffect(() => {
@@ -57,14 +57,14 @@ const TierUpgrade: React.FC<TierUpgradeProps> = ({ currentTier, onClose }) => {
     setSuccess(null);
 
     try {
-      await authService.updateProfile({ tier: newTier });
+      await updateUserTier(newTier);
       
       const action = getTierPriority(newTier) > getTierPriority(user.tier) ? 'upgraded' : 'downgraded';
       setSuccess(`Successfully ${action} to ${getTierDisplayName(newTier)} plan!`);
       
-      // Refresh the page after a short delay to reflect changes
+      // Close modal after a short delay
       setTimeout(() => {
-        window.location.reload();
+        onClose();
       }, 2000);
       
     } catch (error) {

@@ -44,3 +44,5 @@ export interface TierLimits {
   hasHistory: boolean;
   requiresAuth: boolean;
 }
+
+export type AnalysisFeature = 'sentiment' | 'keyPhrases' | 'entities' | 'summary' | 'language';
