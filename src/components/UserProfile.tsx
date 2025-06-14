@@ -6,13 +6,13 @@ import AuthModal from './AuthModal';
 import TierUpgrade from './TierUpgrade';
 
 const UserProfile: React.FC = () => {
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, isLoading } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
-  // Show loading state while user is being determined
-  if (!user) {
+  // Show loading state while determining authentication status
+  if (isLoading) {
     return (
       <div className="flex items-center space-x-3">
         <div className="animate-pulse bg-gray-200 rounded-lg px-4 py-2 w-32 h-10"></div>
@@ -20,28 +20,20 @@ const UserProfile: React.FC = () => {
     );
   }
 
-  const tierLimits = getTierLimits(user.tier);
-  const tierColor = getTierColor(user.tier);
-
-  const getTierIcon = () => {
-    switch (user.tier) {
-      case 'pro': return <Crown className="w-4 h-4" />;
-      case 'standard': return <Star className="w-4 h-4" />;
-      default: return <User className="w-4 h-4" />;
-    }
-  };
-
-  if (user.tier === 'guest') {
+  // Always show sign-in button for guest users (not authenticated or guest tier)
+  if (!isAuthenticated || !user || user.tier === 'guest') {
     return (
       <>
         <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2 bg-gray-100 px-3 py-2 rounded-lg">
-            <User className="w-4 h-4 text-gray-600" />
-            <span className="text-sm font-medium text-gray-700">Guest Mode</span>
-          </div>
+          {user?.tier === 'guest' && (
+            <div className="flex items-center space-x-2 bg-gray-100 px-3 py-2 rounded-lg">
+              <User className="w-4 h-4 text-gray-600" />
+              <span className="text-sm font-medium text-gray-700">Guest Mode</span>
+            </div>
+          )}
           <button
             onClick={() => setShowAuthModal(true)}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
+            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             Sign In
           </button>
@@ -54,12 +46,24 @@ const UserProfile: React.FC = () => {
     );
   }
 
+  // Authenticated user with standard or pro tier
+  const tierLimits = getTierLimits(user.tier);
+  const tierColor = getTierColor(user.tier);
+
+  const getTierIcon = () => {
+    switch (user.tier) {
+      case 'pro': return <Crown className="w-4 h-4" />;
+      case 'standard': return <Star className="w-4 h-4" />;
+      default: return <User className="w-4 h-4" />;
+    }
+  };
+
   return (
     <>
       <div className="relative">
         <button
           onClick={() => setShowDropdown(!showDropdown)}
-          className="flex items-center space-x-3 bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-2 hover:bg-white/80 transition-all duration-200"
+          className="flex items-center space-x-3 bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-2 hover:bg-white/80 transition-all duration-200 shadow-lg"
         >
           <div className={`flex items-center space-x-2 px-2 py-1 rounded-lg ${tierColor}`}>
             {getTierIcon()}

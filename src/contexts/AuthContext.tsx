@@ -131,6 +131,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const user = await authService.getCurrentUser();
           if (user && mounted) {
             dispatch({ type: 'SET_USER', payload: user });
+          } else {
+            if (mounted) {
+              dispatch({ type: 'SET_GUEST' });
+            }
           }
         } catch (error) {
           console.error('❌ Failed to get user after sign in:', error);
