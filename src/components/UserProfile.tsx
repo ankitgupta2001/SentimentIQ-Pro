@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
-import { User, Crown, Star, LogOut, History, Settings, TrendingUp } from 'lucide-react';
+import { User, Crown, Star, LogOut, History, Settings, TrendingUp, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getTierDisplayName, getTierColor, getTierLimits } from '../utils/tierUtils';
 import AuthModal from './AuthModal';
 import TierUpgrade from './TierUpgrade';
+import AdminAccess from './AdminAccess';
 
 const UserProfile: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [showAdminAccess, setShowAdminAccess] = useState(false);
 
   if (!user) return null;
 
@@ -23,6 +25,9 @@ const UserProfile: React.FC = () => {
       default: return <User className="w-4 h-4" />;
     }
   };
+
+  // Check if user has admin access (you can modify this logic)
+  const isAdminUser = user.email === 'admin@sentimentiq.com' || user.tier === 'pro';
 
   if (user.tier === 'guest') {
     return (
@@ -38,18 +43,28 @@ const UserProfile: React.FC = () => {
           >
             Sign In
           </button>
+          {isAdminUser && (
+            <button
+              onClick={() => setShowAdminAccess(true)}
+              className="bg-gradient-to-r from-red-600 to-purple-600 text-white px-3 py-2 rounded-lg font-medium hover:from-red-700 hover:to-purple-700 transition-all duration-200 flex items-center gap-2"
+            >
+              <Shield className="w-4 h-4" />
+              Admin
+            </button>
+          )}
         </div>
         <AuthModal 
           isOpen={showAuthModal} 
           onClose={() => setShowAuthModal(false)} 
         />
+        {showAdminAccess && <AdminAccess />}
       </>
     );
   }
 
   return (
     <>
-      <div className="relative">
+      <div className="relative flex items-center space-x-3">
         <button
           onClick={() => setShowDropdown(!showDropdown)}
           className="flex items-center space-x-3 bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-2 hover:bg-white/80 transition-all duration-200"
@@ -63,6 +78,16 @@ const UserProfile: React.FC = () => {
             <div className="text-xs text-gray-600">{user.email}</div>
           </div>
         </button>
+
+        {isAdminUser && (
+          <button
+            onClick={() => setShowAdminAccess(true)}
+            className="bg-gradient-to-r from-red-600 to-purple-600 text-white px-3 py-2 rounded-lg font-medium hover:from-red-700 hover:to-purple-700 transition-all duration-200 flex items-center gap-2"
+          >
+            <Shield className="w-4 h-4" />
+            Admin
+          </button>
+        )}
 
         {showDropdown && (
           <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-50">
@@ -129,6 +154,19 @@ const UserProfile: React.FC = () => {
                 <Settings className="w-4 h-4 text-gray-500" />
                 <span className="text-sm text-gray-700">Manage Plan</span>
               </button>
+
+              {isAdminUser && (
+                <button
+                  onClick={() => {
+                    setShowAdminAccess(true);
+                    setShowDropdown(false);
+                  }}
+                  className="w-full flex items-center space-x-2 px-3 py-2 text-left hover:bg-red-50 rounded-lg transition-colors text-red-600"
+                >
+                  <Shield className="w-4 h-4" />
+                  <span className="text-sm">Admin Dashboard</span>
+                </button>
+              )}
               
               <button
                 onClick={() => {
@@ -159,6 +197,8 @@ const UserProfile: React.FC = () => {
           onClose={() => setShowUpgrade(false)}
         />
       )}
+
+      {showAdminAccess && <AdminAccess />}
     </>
   );
 };

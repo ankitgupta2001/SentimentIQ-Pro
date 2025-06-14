@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import type { AuthState, User, LoginCredentials, RegisterCredentials } from '../types/auth';
 import { authService, supabase } from '../services/authService';
+import { adminService } from '../services/adminService';
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
@@ -63,6 +64,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const initAuth = async () => {
       try {
+        // Track page view
+        adminService.trackVisitor(window.location.pathname, document.referrer);
+        
         // Check if user is already logged in
         const { data: { session } } = await supabase.auth.getSession();
         
@@ -70,6 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const user = await authService.getCurrentUser();
           if (user) {
             dispatch({ type: 'SET_USER', payload: user });
+            adminService.logEvent('info', 'User session restored', 'auth', { userId: user.id });
           } else {
             dispatch({ type: 'SET_GUEST' });
           }
@@ -78,6 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (error) {
         console.error('Auth initialization failed:', error);
+        adminService.logEvent('error', 'Auth initialization failed', 'auth', {}, error as Error);
         dispatch({ type: 'SET_GUEST' });
       }
     };
@@ -91,11 +97,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const user = await authService.getCurrentUser();
           if (user) {
             dispatch({ type: 'SET_USER', payload: user });
+            adminService.logEvent('info', 'User signed in', 'auth', { userId: user.id });
+            adminService.trackAction('login', { userId: user.id, email: user.email });
           }
         } catch (error) {
           console.error('Failed to get user after sign in:', error);
+          adminService.logEvent('error', 'Failed to get user after sign in', 'auth', {}, error as Error);
         }
       } else if (event === 'SIGNED_OUT') {
+        adminService.logEvent('info', 'User signed out', 'auth');
         dispatch({ type: 'SET_GUEST' });
       }
     });
@@ -108,10 +118,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (credentials: LoginCredentials) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
+      adminService.logEvent('info', 'Login attempt', 'auth', { email: credentials.email });
       const response = await authService.login(credentials);
       dispatch({ type: 'SET_USER', payload: response.user });
+      adminService.logEvent('info', 'Login successful', 'auth', { userId: response.user.id });
     } catch (error) {
       dispatch({ type: 'SET_LOADING', payload: false });
+      adminService.logEvent('error', 'Login failed', 'auth', { email: credentials.email }, error as Error);
       throw error;
     }
   };
@@ -119,22 +132,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (credentials: RegisterCredentials) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
+      adminService.logEvent('info', 'Registration attempt', 'auth', { email: credentials.email, tier: credentials.tier });
       const response = await authService.register(credentials);
       dispatch({ type: 'SET_USER', payload: response.user });
+      adminService.logEvent('info', 'Registration successful', 'auth', { userId: response.user.id, tier: credentials.tier });
+      adminService.trackAction('register', { userId: response.user.id, email: response.user.email, tier: credentials.tier });
     } catch (error) {
       dispatch({ type: 'SET_LOADING', payload: false });
+      adminService.logEvent('error', 'Registration failed', 'auth', { email: credentials.email }, error as Error);
       throw error;
     }
   };
 
   const logout = async () => {
     try {
+      const userId = state.user?.id;
       await authService.logout();
       dispatch({ type: 'LOGOUT' });
       // Switch back to guest mode
       dispatch({ type: 'SET_GUEST' });
+      adminService.logEvent('info', 'User logged out', 'auth', { userId });
     } catch (error) {
       console.error('Logout failed:', error);
+      adminService.logEvent('error', 'Logout failed', 'auth', {}, error as Error);
       // Force logout on client side even if server logout fails
       dispatch({ type: 'LOGOUT' });
       dispatch({ type: 'SET_GUEST' });
@@ -143,6 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const switchToGuest = () => {
     dispatch({ type: 'SET_GUEST' });
+    adminService.logEvent('info', 'Switched to guest mode', 'auth');
   };
 
   return (
