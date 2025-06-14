@@ -20,7 +20,7 @@ const UserProfile: React.FC = () => {
     );
   }
 
-  // Always show sign-in button for guest users (not authenticated or guest tier)
+  // Show sign-in button for unauthenticated users or guest users
   if (!isAuthenticated || !user || user.tier === 'guest') {
     return (
       <>

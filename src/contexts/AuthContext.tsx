@@ -149,17 +149,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } else if (event === 'TOKEN_REFRESHED' && session?.user) {
         console.log('🔄 Token refreshed for user:', session.user.id);
-        // Only update if we don't have a user or if it's a guest
-        if (!state.user || state.user.id === 'guest') {
-          try {
-            const user = await authService.getCurrentUser();
-            if (user && mounted) {
-              dispatch({ type: 'SET_USER', payload: user });
-              console.log('✅ User restored after token refresh:', user.name, user.tier);
-            }
-          } catch (error) {
-            console.error('❌ Failed to get user after token refresh:', error);
+        try {
+          const user = await authService.getCurrentUser();
+          if (user && mounted) {
+            dispatch({ type: 'SET_USER', payload: user });
+            console.log('✅ User restored after token refresh:', user.name, user.tier);
           }
+        } catch (error) {
+          console.error('❌ Failed to get user after token refresh:', error);
         }
       }
     });
