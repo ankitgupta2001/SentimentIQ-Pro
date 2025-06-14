@@ -18,6 +18,10 @@ class AuthService {
     });
 
     if (error) {
+      // Handle specific email confirmation error
+      if (error.message.includes('Email not confirmed') || error.message.includes('email_not_confirmed')) {
+        throw new Error('Please check your email and click the confirmation link before signing in. Check your spam folder if you don\'t see the email.');
+      }
       throw new Error(error.message);
     }
 
@@ -74,6 +78,11 @@ class AuthService {
       throw new Error('Registration failed - no user data returned');
     }
 
+    // Check if email confirmation is required
+    if (!data.session) {
+      throw new Error('CONFIRMATION_REQUIRED');
+    }
+
     // Get user profile (should be created by trigger) using maybeSingle()
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -128,6 +137,17 @@ class AuthService {
       user,
       token: data.session?.access_token || ''
     };
+  }
+
+  async resendConfirmation(email: string): Promise<void> {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: email
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
   }
 
   async verifyToken(token: string): Promise<User> {

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { X, User, Mail, Lock, Crown, Star, Zap } from 'lucide-react';
+import { X, User, Mail, Lock, Crown, Star, Zap, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { LoginCredentials, RegisterCredentials } from '../types/auth';
+import { authService } from '../services/authService';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -10,9 +11,12 @@ interface AuthModalProps {
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'login' }) => {
-  const [mode, setMode] = useState<'login' | 'register'>(initialMode);
+  const [mode, setMode] = useState<'login' | 'register' | 'confirmation'>(initialMode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmationEmail, setConfirmationEmail] = useState<string>('');
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
   const { login, register } = useAuth();
 
   const [loginForm, setLoginForm] = useState<LoginCredentials>({
@@ -38,7 +42,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
       await login(loginForm);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      const errorMessage = err instanceof Error ? err.message : 'Login failed';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -53,10 +58,42 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
       await register(registerForm);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed');
+      const errorMessage = err instanceof Error ? err.message : 'Registration failed';
+      
+      // Handle email confirmation requirement
+      if (errorMessage === 'CONFIRMATION_REQUIRED') {
+        setConfirmationEmail(registerForm.email);
+        setMode('confirmation');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResendConfirmation = async () => {
+    setResendLoading(true);
+    setError(null);
+    setResendSuccess(false);
+
+    try {
+      await authService.resendConfirmation(confirmationEmail);
+      setResendSuccess(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to resend confirmation email');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  const resetModal = () => {
+    setMode(initialMode);
+    setError(null);
+    setConfirmationEmail('');
+    setResendSuccess(false);
+    setLoginForm({ email: '', password: '' });
+    setRegisterForm({ name: '', email: '', password: '', tier: 'standard' });
   };
 
   return (
@@ -65,10 +102,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-800">
-              {mode === 'login' ? 'Welcome Back' : 'Create Account'}
+              {mode === 'login' && 'Welcome Back'}
+              {mode === 'register' && 'Create Account'}
+              {mode === 'confirmation' && 'Check Your Email'}
             </h2>
             <button
-              onClick={onClose}
+              onClick={() => {
+                onClose();
+                resetModal();
+              }}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <X className="w-5 h-5" />
@@ -76,12 +118,63 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {error}
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
-          {mode === 'login' ? (
+          {resendSuccess && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm flex items-start gap-2">
+              <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span>Confirmation email sent successfully!</span>
+            </div>
+          )}
+
+          {mode === 'confirmation' ? (
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
+                <Mail className="w-8 h-8 text-blue-600" />
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Confirm Your Email
+                </h3>
+                <p className="text-gray-600 text-sm">
+                  We've sent a confirmation email to:
+                </p>
+                <p className="font-medium text-gray-800">
+                  {confirmationEmail}
+                </p>
+                <p className="text-gray-600 text-sm">
+                  Please check your email and click the confirmation link to complete your registration. 
+                  Don't forget to check your spam folder!
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={handleResendConfirmation}
+                  disabled={resendLoading}
+                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {resendLoading ? 'Sending...' : 'Resend Confirmation Email'}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setMode('login');
+                    setError(null);
+                    setResendSuccess(false);
+                  }}
+                  className="w-full text-blue-600 hover:text-blue-700 font-medium py-2"
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            </div>
+          ) : mode === 'login' ? (
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -231,20 +324,23 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
             </form>
           )}
 
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => {
-                setMode(mode === 'login' ? 'register' : 'login');
-                setError(null);
-              }}
-              className="text-blue-600 hover:text-blue-700 font-medium"
-            >
-              {mode === 'login' 
-                ? "Don't have an account? Sign up" 
-                : "Already have an account? Sign in"
-              }
-            </button>
-          </div>
+          {mode !== 'confirmation' && (
+            <div className="mt-6 text-center">
+              <button
+                onClick={() => {
+                  setMode(mode === 'login' ? 'register' : 'login');
+                  setError(null);
+                  setResendSuccess(false);
+                }}
+                className="text-blue-600 hover:text-blue-700 font-medium"
+              >
+                {mode === 'login' 
+                  ? "Don't have an account? Sign up" 
+                  : "Already have an account? Sign in"
+                }
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
