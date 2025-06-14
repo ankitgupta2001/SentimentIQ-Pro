@@ -6,12 +6,18 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import FeatureSelector from './components/FeatureSelector';
 import UserProfile from './components/UserProfile';
+import AuthCallback from './components/AuthCallback';
 import type { AnalysisFeature } from './types/sentiment';
 
 function App() {
   const [selectedFeatures, setSelectedFeatures] = useState<AnalysisFeature[]>([
     'sentiment'
   ]);
+
+  // Check if this is an auth callback
+  if (window.location.pathname === '/auth/callback') {
+    return <AuthCallback />;
+  }
 
   return (
     <AuthProvider>

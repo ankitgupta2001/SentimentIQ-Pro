@@ -8,7 +8,16 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    // Configure the redirect URL for email confirmation
+    redirectTo: `${window.location.origin}/auth/callback`,
+    // Disable email confirmation for development (you can enable this in production)
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+});
 
 class AuthService {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
@@ -59,14 +68,19 @@ class AuthService {
   }
 
   async register(credentials: RegisterCredentials): Promise<AuthResponse> {
+    console.log('Registering user with tier:', credentials.tier);
+    
     const { data, error } = await supabase.auth.signUp({
       email: credentials.email,
       password: credentials.password,
       options: {
         data: {
           name: credentials.name,
-          tier: credentials.tier
-        }
+          tier: credentials.tier,
+          full_name: credentials.name
+        },
+        // Set redirect URL for email confirmation
+        emailRedirectTo: `${window.location.origin}/auth/callback`
       }
     });
 
@@ -91,11 +105,13 @@ class AuthService {
       .maybeSingle();
 
     if (profileError) {
+      console.error('Profile fetch error:', profileError);
       throw new Error('Failed to fetch user profile');
     }
 
     if (!profile) {
-      // If profile doesn't exist, create it manually
+      console.log('Profile not found, creating manually with tier:', credentials.tier);
+      // If profile doesn't exist, create it manually with the correct tier
       const { data: newProfile, error: createError } = await supabase
         .from('profiles')
         .insert({
@@ -108,6 +124,7 @@ class AuthService {
         .single();
 
       if (createError) {
+        console.error('Profile creation error:', createError);
         throw new Error('Failed to create user profile');
       }
 
@@ -123,6 +140,23 @@ class AuthService {
         user,
         token: data.session?.access_token || ''
       };
+    }
+
+    // If profile exists but has wrong tier, update it
+    if (profile.tier !== credentials.tier) {
+      console.log('Updating profile tier from', profile.tier, 'to', credentials.tier);
+      const { data: updatedProfile, error: updateError } = await supabase
+        .from('profiles')
+        .update({ tier: credentials.tier })
+        .eq('id', data.user.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Profile update error:', updateError);
+      } else {
+        profile.tier = updatedProfile.tier;
+      }
     }
 
     const user: User = {
@@ -142,7 +176,10 @@ class AuthService {
   async resendConfirmation(email: string): Promise<void> {
     const { error } = await supabase.auth.resend({
       type: 'signup',
-      email: email
+      email: email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`
+      }
     });
 
     if (error) {
