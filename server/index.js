@@ -1,6 +1,14 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { 
+  registerUser, 
+  loginUser, 
+  getUserByToken, 
+  authenticateToken,
+  saveAnalysisToHistory,
+  getUserAnalysisHistory
+} from './auth.js';
 
 // Load environment variables with error handling
 const dotenvResult = dotenv.config();
@@ -260,30 +268,127 @@ app.use((req, res, next) => {
   next();
 });
 
+// Authentication routes
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { name, email, password, tier } = req.body;
+    
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        message: 'Name, email, and password are required'
+      });
+    }
+
+    const result = await registerUser({ name, email, password, tier });
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Registration error:', error);
+    res.status(400).json({
+      error: 'Registration failed',
+      message: error.message
+    });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({
+        error: 'Missing credentials',
+        message: 'Email and password are required'
+      });
+    }
+
+    const result = await loginUser({ email, password });
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Login error:', error);
+    res.status(401).json({
+      error: 'Login failed',
+      message: error.message
+    });
+  }
+});
+
+app.get('/api/auth/verify', authenticateToken, (req, res) => {
+  res.json({ user: req.user });
+});
+
+app.get('/api/auth/history', authenticateToken, async (req, res) => {
+  try {
+    const history = await getUserAnalysisHistory(req.user.id);
+    res.json(history);
+  } catch (error) {
+    console.error('❌ History fetch error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch history',
+      message: error.message
+    });
+  }
+});
+
+app.post('/api/auth/save-analysis', authenticateToken, async (req, res) => {
+  try {
+    const { text, features, result } = req.body;
+    
+    if (!text || !features || !result) {
+      return res.status(400).json({
+        error: 'Missing analysis data',
+        message: 'Text, features, and result are required'
+      });
+    }
+
+    await saveAnalysisToHistory(req.user.id, { text, features, result });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Save analysis error:', error);
+    res.status(500).json({
+      error: 'Failed to save analysis',
+      message: error.message
+    });
+  }
+});
+
 // Root endpoint - API information
 app.get('/', (req, res) => {
   res.json({
     name: 'SentimentIQ Pro - Advanced Text Analytics API',
     version: '2.0.0',
-    description: 'Comprehensive text analysis platform powered by Azure AI Language',
+    description: 'Comprehensive text analysis platform powered by Azure AI Language with user authentication',
     status: 'running',
     features: [
+      'User Authentication & Tiers',
       'Sentiment Analysis',
       'Key Phrase Extraction',
       'Named Entity Recognition',
       'Text Summarization',
-      'Language Detection'
+      'Language Detection',
+      'Analysis History'
     ],
     endpoints: {
       health: 'GET /health',
-      analyze: 'POST /api/analyze-text',
-      sentiment: 'POST /api/analyze-sentiment',
-      keyPhrases: 'POST /api/extract-key-phrases',
-      entities: 'POST /api/recognize-entities',
-      summarize: 'POST /api/summarize-text',
-      detectLanguage: 'POST /api/detect-language',
-      testAzure: 'GET /api/test-azure',
-      diagnostics: 'GET /api/diagnostics'
+      auth: {
+        register: 'POST /api/auth/register',
+        login: 'POST /api/auth/login',
+        verify: 'GET /api/auth/verify',
+        history: 'GET /api/auth/history',
+        saveAnalysis: 'POST /api/auth/save-analysis'
+      },
+      analysis: {
+        comprehensive: 'POST /api/analyze-text',
+        sentiment: 'POST /api/analyze-sentiment',
+        keyPhrases: 'POST /api/extract-key-phrases',
+        entities: 'POST /api/recognize-entities',
+        summarize: 'POST /api/summarize-text',
+        detectLanguage: 'POST /api/detect-language'
+      },
+      diagnostics: {
+        testAzure: 'GET /api/test-azure',
+        diagnostics: 'GET /api/diagnostics'
+      }
     },
     azure_configured: azureConfigured,
     timestamp: new Date().toISOString()
@@ -671,11 +776,13 @@ app.get('/api/diagnostics', (req, res) => {
       api_endpoint: azureConfigured ? `${azureEndpoint}language/:analyze-text?api-version=2023-04-01` : 'NOT_CONFIGURED'
     },
     available_features: [
+      'User Authentication & Tiers',
       'Sentiment Analysis',
       'Key Phrase Extraction',
       'Named Entity Recognition',
       'Text Summarization',
-      'Language Detection'
+      'Language Detection',
+      'Analysis History'
     ],
     recommendations: [
       'Ensure your Azure Language resource is deployed and active',
@@ -754,6 +861,7 @@ const server = app.listen(PORT, () => {
   console.log(`📋 API info: http://localhost:${PORT}/`);
   console.log(`🔧 Test Azure: http://localhost:${PORT}/api/test-azure`);
   console.log(`🔍 Diagnostics: http://localhost:${PORT}/api/diagnostics`);
+  console.log(`🔐 Authentication: http://localhost:${PORT}/api/auth/*`);
   
   if (!azureConfigured) {
     console.log('⚠️  Running without Azure Language API');
@@ -766,6 +874,11 @@ const server = app.listen(PORT, () => {
     console.log('   ✓ Text Summarization');
     console.log('   ✓ Language Detection');
   }
+  
+  console.log('🎯 User Tiers Available:');
+  console.log('   👤 Guest: Sentiment Analysis only (no auth required)');
+  console.log('   ⭐ Standard: Sentiment + Key Phrases + History');
+  console.log('   👑 Pro: All Features + History + Priority Support');
 });
 
 // Handle server errors

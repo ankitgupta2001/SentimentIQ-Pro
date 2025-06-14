@@ -10,6 +10,25 @@ import type {
 
 const API_BASE_URL = '/api';
 
+// Helper function to get auth token
+const getAuthToken = (): string | null => {
+  return localStorage.getItem('authToken');
+};
+
+// Helper function to add auth headers
+const getHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
+};
+
 export const analyzeSentiment = async (text: string): Promise<SentimentResult> => {
   if (!text?.trim()) {
     throw new Error('Text is required for analysis');
@@ -18,9 +37,7 @@ export const analyzeSentiment = async (text: string): Promise<SentimentResult> =
   try {
     const response = await fetch(`${API_BASE_URL}/analyze-sentiment`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(),
       body: JSON.stringify({ text: text.trim() }),
     });
 
@@ -75,9 +92,7 @@ export const extractKeyPhrases = async (text: string): Promise<KeyPhrasesResult>
   try {
     const response = await fetch(`${API_BASE_URL}/extract-key-phrases`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(),
       body: JSON.stringify({ text: text.trim() }),
     });
 
@@ -108,9 +123,7 @@ export const recognizeEntities = async (text: string): Promise<EntitiesResult> =
   try {
     const response = await fetch(`${API_BASE_URL}/recognize-entities`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(),
       body: JSON.stringify({ text: text.trim() }),
     });
 
@@ -145,9 +158,7 @@ export const summarizeText = async (text: string): Promise<SummaryResult> => {
   try {
     const response = await fetch(`${API_BASE_URL}/summarize-text`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(),
       body: JSON.stringify({ text: text.trim() }),
     });
 
@@ -178,9 +189,7 @@ export const detectLanguage = async (text: string): Promise<LanguageResult> => {
   try {
     const response = await fetch(`${API_BASE_URL}/detect-language`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(),
       body: JSON.stringify({ text: text.trim() }),
     });
 
@@ -214,9 +223,7 @@ export const analyzeTextComprehensive = async (
   try {
     const response = await fetch(`${API_BASE_URL}/analyze-text`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(),
       body: JSON.stringify({ text: text.trim(), features }),
     });
 
@@ -234,7 +241,28 @@ export const analyzeTextComprehensive = async (
       throw new Error(errorData.message || `Request failed with status ${response.status}`);
     }
 
-    return await response.json();
+    const result = await response.json();
+    
+    // Save analysis to history if user is authenticated
+    const token = getAuthToken();
+    if (token) {
+      try {
+        await fetch('/api/auth/save-analysis', {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({
+            text: text.trim(),
+            features,
+            result
+          }),
+        });
+      } catch (error) {
+        // Don't fail the main request if saving to history fails
+        console.warn('Failed to save analysis to history:', error);
+      }
+    }
+
+    return result;
   } catch (error) {
     if (error instanceof TypeError && error.message.includes('fetch')) {
       throw new Error('Unable to connect to the comprehensive analysis service.');
