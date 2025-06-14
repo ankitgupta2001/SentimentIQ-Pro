@@ -64,21 +64,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const initAuth = async () => {
       try {
+        dispatch({ type: 'SET_LOADING', payload: true });
+        
         // Track page view
         adminService.trackVisitor(window.location.pathname, document.referrer);
         
         // Check if user is already logged in
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          adminService.logEvent('error', 'Session retrieval failed', 'auth', {}, sessionError);
+          dispatch({ type: 'SET_GUEST' });
+          return;
+        }
         
         if (session?.user) {
-          const user = await authService.getCurrentUser();
-          if (user) {
-            dispatch({ type: 'SET_USER', payload: user });
-            adminService.logEvent('info', 'User session restored', 'auth', { userId: user.id });
-          } else {
+          console.log('Found existing session, getting user profile...');
+          
+          try {
+            const user = await authService.getCurrentUser();
+            if (user) {
+              console.log('User profile loaded:', user);
+              dispatch({ type: 'SET_USER', payload: user });
+              adminService.logEvent('info', 'User session restored', 'auth', { userId: user.id });
+            } else {
+              console.log('No user profile found, switching to guest');
+              dispatch({ type: 'SET_GUEST' });
+            }
+          } catch (profileError) {
+            console.error('Failed to get user profile:', profileError);
+            adminService.logEvent('error', 'Failed to get user profile during session restore', 'auth', {}, profileError as Error);
             dispatch({ type: 'SET_GUEST' });
           }
         } else {
+          console.log('No existing session found, switching to guest');
           dispatch({ type: 'SET_GUEST' });
         }
       } catch (error) {
@@ -92,6 +112,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.id);
+      
       if (event === 'SIGNED_IN' && session?.user) {
         try {
           const user = await authService.getCurrentUser();
@@ -105,8 +127,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           adminService.logEvent('error', 'Failed to get user after sign in', 'auth', {}, error as Error);
         }
       } else if (event === 'SIGNED_OUT') {
+        console.log('User signed out, switching to guest');
         adminService.logEvent('info', 'User signed out', 'auth');
         dispatch({ type: 'SET_GUEST' });
+      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+        console.log('Token refreshed, maintaining user session');
+        // Don't change state on token refresh if user is already set
+        if (!state.user || state.user.id === 'guest') {
+          try {
+            const user = await authService.getCurrentUser();
+            if (user) {
+              dispatch({ type: 'SET_USER', payload: user });
+            }
+          } catch (error) {
+            console.error('Failed to get user after token refresh:', error);
+          }
+        }
       }
     });
 
