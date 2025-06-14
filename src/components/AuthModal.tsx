@@ -41,6 +41,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
     try {
       await login(loginForm);
       onClose();
+      // Reset form
+      setLoginForm({ email: '', password: '' });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed';
       setError(errorMessage);
@@ -57,6 +59,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
     try {
       await register(registerForm);
       onClose();
+      // Reset form
+      setRegisterForm({ name: '', email: '', password: '', tier: 'standard' });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Registration failed';
       
@@ -96,6 +100,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
     setRegisterForm({ name: '', email: '', password: '', tier: 'standard' });
   };
 
+  const handleClose = () => {
+    onClose();
+    resetModal();
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -107,10 +116,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
               {mode === 'confirmation' && 'Check Your Email'}
             </h2>
             <button
-              onClick={() => {
-                onClose();
-                resetModal();
-              }}
+              onClick={handleClose}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <X className="w-5 h-5" />
