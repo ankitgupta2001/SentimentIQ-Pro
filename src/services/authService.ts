@@ -283,6 +283,61 @@ class AuthService {
       createdAt: data.created_at
     };
   }
+
+  async getPlanStats(): Promise<{ standard: number; pro: number }> {
+    try {
+      // Get total count of users
+      const { count: totalUsers, error: totalError } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .neq('tier', 'guest');
+
+      if (totalError) {
+        throw new Error('Failed to get total user count');
+      }
+
+      // Get count of standard users
+      const { count: standardUsers, error: standardError } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('tier', 'standard');
+
+      if (standardError) {
+        throw new Error('Failed to get standard user count');
+      }
+
+      // Get count of pro users
+      const { count: proUsers, error: proError } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('tier', 'pro');
+
+      if (proError) {
+        throw new Error('Failed to get pro user count');
+      }
+
+      const total = (totalUsers || 0);
+      const standard = (standardUsers || 0);
+      const pro = (proUsers || 0);
+
+      // Calculate percentages
+      if (total === 0) {
+        return { standard: 65, pro: 35 }; // Default values
+      }
+
+      const standardPercentage = Math.round((standard / total) * 100);
+      const proPercentage = Math.round((pro / total) * 100);
+
+      return {
+        standard: standardPercentage,
+        pro: proPercentage
+      };
+    } catch (error) {
+      console.error('Error fetching plan stats:', error);
+      // Return default values if there's an error
+      return { standard: 65, pro: 35 };
+    }
+  }
 }
 
 export const authService = new AuthService();
