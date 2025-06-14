@@ -1,86 +1,254 @@
+import { createClient } from '@supabase/supabase-js';
 import type { LoginCredentials, RegisterCredentials, AuthResponse, User } from '../types/auth';
 
-const API_BASE_URL = '/api/auth';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 class AuthService {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await fetch(`${API_BASE_URL}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(credentials),
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: credentials.email,
+      password: credentials.password,
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Login failed');
+    if (error) {
+      throw new Error(error.message);
     }
 
-    return response.json();
+    if (!data.user) {
+      throw new Error('Login failed - no user data returned');
+    }
+
+    // Get user profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+
+    if (profileError) {
+      throw new Error('Failed to fetch user profile');
+    }
+
+    const user: User = {
+      id: profile.id,
+      email: profile.email,
+      name: profile.name,
+      tier: profile.tier,
+      createdAt: profile.created_at
+    };
+
+    return {
+      user,
+      token: data.session?.access_token || ''
+    };
   }
 
   async register(credentials: RegisterCredentials): Promise<AuthResponse> {
-    const response = await fetch(`${API_BASE_URL}/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(credentials),
+    const { data, error } = await supabase.auth.signUp({
+      email: credentials.email,
+      password: credentials.password,
+      options: {
+        data: {
+          name: credentials.name,
+          tier: credentials.tier
+        }
+      }
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Registration failed');
+    if (error) {
+      throw new Error(error.message);
     }
 
-    return response.json();
+    if (!data.user) {
+      throw new Error('Registration failed - no user data returned');
+    }
+
+    // Get user profile (should be created by trigger)
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+
+    if (profileError) {
+      // If profile doesn't exist, create it manually
+      const { data: newProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          id: data.user.id,
+          email: credentials.email,
+          name: credentials.name,
+          tier: credentials.tier
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        throw new Error('Failed to create user profile');
+      }
+
+      const user: User = {
+        id: newProfile.id,
+        email: newProfile.email,
+        name: newProfile.name,
+        tier: newProfile.tier,
+        createdAt: newProfile.created_at
+      };
+
+      return {
+        user,
+        token: data.session?.access_token || ''
+      };
+    }
+
+    const user: User = {
+      id: profile.id,
+      email: profile.email,
+      name: profile.name,
+      tier: profile.tier,
+      createdAt: profile.created_at
+    };
+
+    return {
+      user,
+      token: data.session?.access_token || ''
+    };
   }
 
   async verifyToken(token: string): Promise<User> {
-    const response = await fetch(`${API_BASE_URL}/verify`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
+    const { data: { user }, error } = await supabase.auth.getUser(token);
 
-    if (!response.ok) {
+    if (error || !user) {
       throw new Error('Token verification failed');
     }
 
-    const data = await response.json();
-    return data.user;
+    // Get user profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      throw new Error('Failed to fetch user profile');
+    }
+
+    return {
+      id: profile.id,
+      email: profile.email,
+      name: profile.name,
+      tier: profile.tier,
+      createdAt: profile.created_at
+    };
   }
 
-  async getAnalysisHistory(token: string): Promise<any[]> {
-    const response = await fetch(`${API_BASE_URL}/history`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
+  async logout(): Promise<void> {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
 
-    if (!response.ok) {
+  async getAnalysisHistory(): Promise<any[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const { data, error } = await supabase
+      .from('analysis_history')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
       throw new Error('Failed to fetch analysis history');
     }
 
-    return response.json();
+    return data || [];
   }
 
-  async saveAnalysis(token: string, analysisData: any): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/save-analysis`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(analysisData),
-    });
+  async saveAnalysis(analysisData: any): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
 
-    if (!response.ok) {
+    const { error } = await supabase
+      .from('analysis_history')
+      .insert({
+        user_id: user.id,
+        text: analysisData.text,
+        features: analysisData.features,
+        result: analysisData.result
+      });
+
+    if (error) {
       throw new Error('Failed to save analysis');
     }
+  }
+
+  async getCurrentUser(): Promise<User | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return null;
+    }
+
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      return null;
+    }
+
+    return {
+      id: profile.id,
+      email: profile.email,
+      name: profile.name,
+      tier: profile.tier,
+      createdAt: profile.created_at
+    };
+  }
+
+  async updateProfile(updates: Partial<Pick<User, 'name' | 'tier'>>): Promise<User> {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error('Failed to update profile');
+    }
+
+    return {
+      id: data.id,
+      email: data.email,
+      name: data.name,
+      tier: data.tier,
+      createdAt: data.created_at
+    };
   }
 }
 

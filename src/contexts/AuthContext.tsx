@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import type { AuthState, User, LoginCredentials, RegisterCredentials } from '../types/auth';
-import { authService } from '../services/authService';
+import { authService, supabase } from '../services/authService';
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
@@ -63,29 +63,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const initAuth = async () => {
       try {
-        const token = localStorage.getItem('authToken');
-        if (token) {
-          const user = await authService.verifyToken(token);
-          dispatch({ type: 'SET_USER', payload: user });
+        // Check if user is already logged in
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          const user = await authService.getCurrentUser();
+          if (user) {
+            dispatch({ type: 'SET_USER', payload: user });
+          } else {
+            dispatch({ type: 'SET_GUEST' });
+          }
         } else {
-          // Default to guest mode
           dispatch({ type: 'SET_GUEST' });
         }
       } catch (error) {
         console.error('Auth initialization failed:', error);
-        localStorage.removeItem('authToken');
         dispatch({ type: 'SET_GUEST' });
       }
     };
 
     initAuth();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        try {
+          const user = await authService.getCurrentUser();
+          if (user) {
+            dispatch({ type: 'SET_USER', payload: user });
+          }
+        } catch (error) {
+          console.error('Failed to get user after sign in:', error);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        dispatch({ type: 'SET_GUEST' });
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (credentials: LoginCredentials) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
       const response = await authService.login(credentials);
-      localStorage.setItem('authToken', response.token);
       dispatch({ type: 'SET_USER', payload: response.user });
     } catch (error) {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -97,7 +120,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
       const response = await authService.register(credentials);
-      localStorage.setItem('authToken', response.token);
       dispatch({ type: 'SET_USER', payload: response.user });
     } catch (error) {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -105,11 +127,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('authToken');
-    dispatch({ type: 'LOGOUT' });
-    // Switch back to guest mode
-    dispatch({ type: 'SET_GUEST' });
+  const logout = async () => {
+    try {
+      await authService.logout();
+      dispatch({ type: 'LOGOUT' });
+      // Switch back to guest mode
+      dispatch({ type: 'SET_GUEST' });
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Force logout on client side even if server logout fails
+      dispatch({ type: 'LOGOUT' });
+      dispatch({ type: 'SET_GUEST' });
+    }
   };
 
   const switchToGuest = () => {

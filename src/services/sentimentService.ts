@@ -1,3 +1,4 @@
+import { supabase } from './authService';
 import type { 
   SentimentResult, 
   KeyPhrasesResult, 
@@ -10,25 +11,6 @@ import type {
 
 const API_BASE_URL = '/api';
 
-// Helper function to get auth token
-const getAuthToken = (): string | null => {
-  return localStorage.getItem('authToken');
-};
-
-// Helper function to add auth headers
-const getHeaders = (): Record<string, string> => {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  
-  const token = getAuthToken();
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  
-  return headers;
-};
-
 export const analyzeSentiment = async (text: string): Promise<SentimentResult> => {
   if (!text?.trim()) {
     throw new Error('Text is required for analysis');
@@ -37,7 +19,9 @@ export const analyzeSentiment = async (text: string): Promise<SentimentResult> =
   try {
     const response = await fetch(`${API_BASE_URL}/analyze-sentiment`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ text: text.trim() }),
     });
 
@@ -92,7 +76,9 @@ export const extractKeyPhrases = async (text: string): Promise<KeyPhrasesResult>
   try {
     const response = await fetch(`${API_BASE_URL}/extract-key-phrases`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ text: text.trim() }),
     });
 
@@ -123,7 +109,9 @@ export const recognizeEntities = async (text: string): Promise<EntitiesResult> =
   try {
     const response = await fetch(`${API_BASE_URL}/recognize-entities`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ text: text.trim() }),
     });
 
@@ -158,7 +146,9 @@ export const summarizeText = async (text: string): Promise<SummaryResult> => {
   try {
     const response = await fetch(`${API_BASE_URL}/summarize-text`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ text: text.trim() }),
     });
 
@@ -189,7 +179,9 @@ export const detectLanguage = async (text: string): Promise<LanguageResult> => {
   try {
     const response = await fetch(`${API_BASE_URL}/detect-language`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ text: text.trim() }),
     });
 
@@ -223,7 +215,9 @@ export const analyzeTextComprehensive = async (
   try {
     const response = await fetch(`${API_BASE_URL}/analyze-text`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ text: text.trim(), features }),
     });
 
@@ -244,18 +238,17 @@ export const analyzeTextComprehensive = async (
     const result = await response.json();
     
     // Save analysis to history if user is authenticated
-    const token = getAuthToken();
-    if (token) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
       try {
-        await fetch('/api/auth/save-analysis', {
-          method: 'POST',
-          headers: getHeaders(),
-          body: JSON.stringify({
+        await supabase
+          .from('analysis_history')
+          .insert({
+            user_id: user.id,
             text: text.trim(),
             features,
             result
-          }),
-        });
+          });
       } catch (error) {
         // Don't fail the main request if saving to history fails
         console.warn('Failed to save analysis to history:', error);
