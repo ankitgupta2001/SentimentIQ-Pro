@@ -17,7 +17,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: true,
     // Set storage key to ensure consistency
-    storageKey: 'supabase.auth.token'
+    storageKey: 'supabase.auth.token',
+    // Configure session storage
+    storage: window.localStorage
   }
 });
 

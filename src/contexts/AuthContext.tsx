@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import type { AuthState, User, LoginCredentials, RegisterCredentials } from '../types/auth';
 import { authService, supabase } from '../services/authService';
-import { adminService } from '../services/adminService';
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
@@ -63,21 +62,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let mounted = true;
+    let authStateSubscription: any = null;
 
     const initAuth = async () => {
       try {
         console.log('🔄 Initializing authentication...');
         dispatch({ type: 'SET_LOADING', payload: true });
         
-        // Track page view
-        adminService.trackVisitor(window.location.pathname, document.referrer);
-        
-        // Get current session
+        // Get current session first
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
           console.error('❌ Session error:', sessionError);
-          adminService.logEvent('error', 'Session retrieval failed', 'auth', {}, sessionError);
           if (mounted) {
             dispatch({ type: 'SET_GUEST' });
           }
@@ -93,10 +89,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (user && mounted) {
               console.log('✅ User profile loaded:', user.name, user.tier);
               dispatch({ type: 'SET_USER', payload: user });
-              adminService.logEvent('info', 'User session restored', 'auth', { 
-                userId: user.id, 
-                tier: user.tier 
-              });
             } else {
               console.log('⚠️ No user profile found, switching to guest');
               if (mounted) {
@@ -105,7 +97,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           } catch (profileError) {
             console.error('❌ Failed to get user profile:', profileError);
-            adminService.logEvent('error', 'Failed to get user profile during session restore', 'auth', {}, profileError as Error);
             if (mounted) {
               dispatch({ type: 'SET_GUEST' });
             }
@@ -118,17 +109,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (error) {
         console.error('❌ Auth initialization failed:', error);
-        adminService.logEvent('error', 'Auth initialization failed', 'auth', {}, error as Error);
         if (mounted) {
           dispatch({ type: 'SET_GUEST' });
         }
       }
     };
 
+    // Initialize auth
     initAuth();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    authStateSubscription = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
       console.log('🔄 Auth state changed:', event, session?.user?.id);
@@ -139,23 +130,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const user = await authService.getCurrentUser();
           if (user && mounted) {
             dispatch({ type: 'SET_USER', payload: user });
-            adminService.logEvent('info', 'User signed in', 'auth', { 
-              userId: user.id, 
-              tier: user.tier 
-            });
-            adminService.trackAction('login', { 
-              userId: user.id, 
-              email: user.email,
-              tier: user.tier 
-            });
           }
         } catch (error) {
           console.error('❌ Failed to get user after sign in:', error);
-          adminService.logEvent('error', 'Failed to get user after sign in', 'auth', {}, error as Error);
         }
       } else if (event === 'SIGNED_OUT') {
         console.log('ℹ️ User signed out, switching to guest');
-        adminService.logEvent('info', 'User signed out', 'auth');
         if (mounted) {
           dispatch({ type: 'SET_GUEST' });
         }
@@ -178,28 +158,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      if (authStateSubscription) {
+        authStateSubscription.data.subscription.unsubscribe();
+      }
     };
-  }, []); // Remove state dependency to avoid infinite loops
+  }, []); // Empty dependency array to avoid infinite loops
 
   const login = async (credentials: LoginCredentials) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
       console.log('🔄 Attempting login for:', credentials.email);
-      adminService.logEvent('info', 'Login attempt', 'auth', { email: credentials.email });
       
       const response = await authService.login(credentials);
       dispatch({ type: 'SET_USER', payload: response.user });
       
       console.log('✅ Login successful for:', response.user.name, response.user.tier);
-      adminService.logEvent('info', 'Login successful', 'auth', { 
-        userId: response.user.id,
-        tier: response.user.tier 
-      });
     } catch (error) {
       dispatch({ type: 'SET_LOADING', payload: false });
       console.error('❌ Login failed:', error);
-      adminService.logEvent('error', 'Login failed', 'auth', { email: credentials.email }, error as Error);
       throw error;
     }
   };
@@ -208,31 +184,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
       console.log('🔄 Attempting registration for:', credentials.email, 'with tier:', credentials.tier);
-      adminService.logEvent('info', 'Registration attempt', 'auth', { 
-        email: credentials.email, 
-        tier: credentials.tier 
-      });
       
       const response = await authService.register(credentials);
       dispatch({ type: 'SET_USER', payload: response.user });
       
       console.log('✅ Registration successful for:', response.user.name, response.user.tier);
-      adminService.logEvent('info', 'Registration successful', 'auth', { 
-        userId: response.user.id, 
-        tier: response.user.tier 
-      });
-      adminService.trackAction('register', { 
-        userId: response.user.id, 
-        email: response.user.email, 
-        tier: response.user.tier 
-      });
     } catch (error) {
       dispatch({ type: 'SET_LOADING', payload: false });
       console.error('❌ Registration failed:', error);
-      adminService.logEvent('error', 'Registration failed', 'auth', { 
-        email: credentials.email,
-        tier: credentials.tier 
-      }, error as Error);
       throw error;
     }
   };
@@ -249,10 +208,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       dispatch({ type: 'SET_GUEST' });
       
       console.log('✅ Logout successful, switched to guest mode');
-      adminService.logEvent('info', 'User logged out', 'auth', { userId });
     } catch (error) {
       console.error('❌ Logout failed:', error);
-      adminService.logEvent('error', 'Logout failed', 'auth', {}, error as Error);
       
       // Force logout on client side even if server logout fails
       dispatch({ type: 'LOGOUT' });
@@ -263,7 +220,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const switchToGuest = () => {
     console.log('🔄 Switching to guest mode');
     dispatch({ type: 'SET_GUEST' });
-    adminService.logEvent('info', 'Switched to guest mode', 'auth');
   };
 
   return (
