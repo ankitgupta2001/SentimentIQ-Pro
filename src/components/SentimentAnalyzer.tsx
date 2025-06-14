@@ -21,10 +21,10 @@ const SentimentAnalyzer: React.FC = () => {
       return;
     }
 
-    if (text.length > 10000) {
+    if (text.length > 5120) {
       setError({
         type: 'validation',
-        message: 'Text is too long. Please limit to 10,000 characters.'
+        message: 'Text is too long. Please limit to 5,120 characters to comply with Azure Language API limits.'
       });
       return;
     }
@@ -53,7 +53,7 @@ const SentimentAnalyzer: React.FC = () => {
     setError(null);
   };
 
-  const isAnalyzeDisabled = !text.trim() || loading || text.length > 10000;
+  const isAnalyzeDisabled = !text.trim() || loading || text.length > 5120;
 
   return (
     <div className="space-y-8">
@@ -102,7 +102,7 @@ const SentimentAnalyzer: React.FC = () => {
         </div>
         
         <div className="mt-4 text-right text-sm text-gray-500">
-          {text.length}/10,000 characters
+          {text.length}/5,120 characters
         </div>
       </div>
 

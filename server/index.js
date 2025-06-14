@@ -313,10 +313,10 @@ app.post('/api/analyze-text', async (req, res) => {
       });
     }
     
-    if (text.length > 10000) {
+    if (text.length > 5120) {
       return res.status(400).json({
         error: 'Text too long',
-        message: 'Text must be less than 10,000 characters'
+        message: 'Text must be less than 5,120 characters to comply with Azure Language API limits'
       });
     }
     
@@ -422,6 +422,13 @@ app.post('/api/analyze-sentiment', async (req, res) => {
       });
     }
 
+    if (text.length > 5120) {
+      return res.status(400).json({
+        error: 'Text too long',
+        message: 'Text must be less than 5,120 characters to comply with Azure Language API limits'
+      });
+    }
+
     if (!azureConfigured) {
       return res.status(503).json({
         error: 'Azure not configured',
@@ -489,6 +496,13 @@ app.post('/api/extract-key-phrases', async (req, res) => {
       });
     }
 
+    if (text.length > 5120) {
+      return res.status(400).json({
+        error: 'Text too long',
+        message: 'Text must be less than 5,120 characters to comply with Azure Language API limits'
+      });
+    }
+
     if (!azureConfigured) {
       return res.status(503).json({
         error: 'Azure not configured',
@@ -520,6 +534,13 @@ app.post('/api/recognize-entities', async (req, res) => {
       return res.status(400).json({
         error: 'Invalid input',
         message: 'Text is required and must be a non-empty string'
+      });
+    }
+
+    if (text.length > 5120) {
+      return res.status(400).json({
+        error: 'Text too long',
+        message: 'Text must be less than 5,120 characters to comply with Azure Language API limits'
       });
     }
 
@@ -560,6 +581,13 @@ app.post('/api/summarize-text', async (req, res) => {
       });
     }
 
+    if (text.length > 5120) {
+      return res.status(400).json({
+        error: 'Text too long',
+        message: 'Text must be less than 5,120 characters to comply with Azure Language API limits'
+      });
+    }
+
     if (!azureConfigured) {
       return res.status(503).json({
         error: 'Azure not configured',
@@ -590,6 +618,13 @@ app.post('/api/detect-language', async (req, res) => {
       return res.status(400).json({
         error: 'Invalid input',
         message: 'Text is required and must be a non-empty string'
+      });
+    }
+
+    if (text.length > 5120) {
+      return res.status(400).json({
+        error: 'Text too long',
+        message: 'Text must be less than 5,120 characters to comply with Azure Language API limits'
       });
     }
 

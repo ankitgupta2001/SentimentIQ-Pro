@@ -38,15 +38,15 @@ const TextInput: React.FC<TextInputProps> = ({
         style={{ minHeight: '200px' }}
       />
       
-      {value.length > 9000 && (
+      {value.length > 4500 && (
         <div className={`
           absolute bottom-3 right-3 px-2 py-1 rounded text-xs font-medium
-          ${value.length > 10000 
+          ${value.length > 5120 
             ? 'bg-red-100 text-red-700' 
             : 'bg-orange-100 text-orange-700'
           }
         `}>
-          {value.length > 10000 ? 'Too long!' : 'Near limit'}
+          {value.length > 5120 ? 'Too long!' : 'Near limit'}
         </div>
       )}
     </div>

@@ -25,10 +25,10 @@ const TextAnalyzer: React.FC<TextAnalyzerProps> = ({ selectedFeatures }) => {
       return;
     }
 
-    if (text.length > 10000) {
+    if (text.length > 5120) {
       setError({
         type: 'validation',
-        message: 'Text is too long. Please limit to 10,000 characters.'
+        message: 'Text is too long. Please limit to 5,120 characters to comply with Azure Language API limits.'
       });
       return;
     }
@@ -65,7 +65,7 @@ const TextAnalyzer: React.FC<TextAnalyzerProps> = ({ selectedFeatures }) => {
     setError(null);
   };
 
-  const isAnalyzeDisabled = !text.trim() || loading || text.length > 10000 || selectedFeatures.length === 0;
+  const isAnalyzeDisabled = !text.trim() || loading || text.length > 5120 || selectedFeatures.length === 0;
 
   return (
     <div className="space-y-8">
@@ -115,7 +115,7 @@ const TextAnalyzer: React.FC<TextAnalyzerProps> = ({ selectedFeatures }) => {
         
         <div className="mt-4 flex justify-between text-sm text-gray-500">
           <span>{selectedFeatures.length} feature{selectedFeatures.length !== 1 ? 's' : ''} selected</span>
-          <span>{text.length}/10,000 characters</span>
+          <span>{text.length}/5,120 characters</span>
         </div>
       </div>
 
