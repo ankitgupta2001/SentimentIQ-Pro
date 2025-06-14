@@ -243,6 +243,10 @@ class AuthService {
 
   async logout(): Promise<void> {
     console.log('🔄 AuthService: Logging out user');
+    
+    // Clear local storage first
+    localStorage.removeItem('supabase.auth.token');
+    
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('❌ AuthService: Logout error:', error.message);

@@ -70,7 +70,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('🔄 Initializing authentication...');
         dispatch({ type: 'SET_LOADING', payload: true });
         
-        // Get current session first
+        // Clear any stale session data first
+        const storedSession = localStorage.getItem('supabase.auth.token');
+        if (storedSession) {
+          try {
+            const sessionData = JSON.parse(storedSession);
+            // Check if session is expired
+            if (sessionData.expires_at && sessionData.expires_at < Date.now() / 1000) {
+              console.log('⚠️ Found expired session, clearing...');
+              localStorage.removeItem('supabase.auth.token');
+              await supabase.auth.signOut();
+            }
+          } catch (error) {
+            console.log('⚠️ Invalid session data, clearing...');
+            localStorage.removeItem('supabase.auth.token');
+          }
+        }
+        
+        // Get current session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
@@ -209,6 +226,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userId = state.user?.id;
       console.log('🔄 Logging out user:', userId);
       
+      // Clear local storage first
+      localStorage.removeItem('supabase.auth.token');
+      
       await authService.logout();
       dispatch({ type: 'LOGOUT' });
       
@@ -220,6 +240,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('❌ Logout failed:', error);
       
       // Force logout on client side even if server logout fails
+      localStorage.removeItem('supabase.auth.token');
       dispatch({ type: 'LOGOUT' });
       dispatch({ type: 'SET_GUEST' });
     }

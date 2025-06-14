@@ -148,6 +148,8 @@ const UserProfile: React.FC = () => {
                     setShowDropdown(false);
                   } catch (error) {
                     console.error('Logout failed:', error);
+                    // Force close dropdown even if logout fails
+                    setShowDropdown(false);
                   }
                 }}
                 className="w-full flex items-center space-x-2 px-3 py-2 text-left hover:bg-red-50 rounded-lg transition-colors text-red-600"
