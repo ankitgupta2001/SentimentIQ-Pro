@@ -108,7 +108,7 @@ const ComprehensiveResults: React.FC<ComprehensiveResultsProps> = ({ result }) =
 
       {/* Feature Results */}
       <div className="space-y-8">
-        {/* Sentiment Analysis */}
+        {/* Sentiment Analysis - Aligned in same line */}
         {features.sentiment && (
           <div className="bg-white rounded-xl p-8 border border-gray-200 shadow-sm">
             <div className="flex items-center mb-6">
@@ -117,40 +117,40 @@ const ComprehensiveResults: React.FC<ComprehensiveResultsProps> = ({ result }) =
             </div>
             
             <div className={`rounded-lg p-6 border-2 ${getSentimentColor(features.sentiment.sentiment)}`}>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center">
+              {/* Main sentiment info in one line */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-4">
                   {getSentimentIcon(features.sentiment.sentiment)}
-                  <span className="ml-3 text-lg font-bold capitalize">
+                  <span className="text-2xl font-bold capitalize">
                     {features.sentiment.sentiment}
                   </span>
-                </div>
-                <div className="text-right">
-                  <div className="text-xl font-bold">
+                  <span className="text-3xl font-bold">
                     {features.sentiment.score > 0 ? '+' : ''}{formatNumber(features.sentiment.score).toFixed(3)}
-                  </div>
-                  <div className="text-sm opacity-80">Score</div>
+                  </span>
+                  <span className="text-sm opacity-80">Score</span>
                 </div>
               </div>
               
+              {/* Confidence scores in same line */}
               {features.sentiment.confidenceScores && (
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div className="text-center">
-                    <div className="font-semibold text-green-600">
+                <div className="flex items-center justify-center space-x-12 text-center">
+                  <div>
+                    <div className="text-2xl font-bold text-green-600">
                       {formatPercentage(features.sentiment.confidenceScores.positive)}
                     </div>
-                    <div className="text-gray-600">Positive</div>
+                    <div className="text-sm text-gray-600">Positive</div>
                   </div>
-                  <div className="text-center">
-                    <div className="font-semibold text-blue-600">
+                  <div>
+                    <div className="text-2xl font-bold text-blue-600">
                       {formatPercentage(features.sentiment.confidenceScores.neutral)}
                     </div>
-                    <div className="text-gray-600">Neutral</div>
+                    <div className="text-sm text-gray-600">Neutral</div>
                   </div>
-                  <div className="text-center">
-                    <div className="font-semibold text-red-600">
+                  <div>
+                    <div className="text-2xl font-bold text-red-600">
                       {formatPercentage(features.sentiment.confidenceScores.negative)}
                     </div>
-                    <div className="text-gray-600">Negative</div>
+                    <div className="text-sm text-gray-600">Negative</div>
                   </div>
                 </div>
               )}
@@ -248,30 +248,31 @@ const ComprehensiveResults: React.FC<ComprehensiveResultsProps> = ({ result }) =
                     {features.summary.summary}
                   </p>
                   
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
-                    <div className="text-center">
-                      <div className="font-semibold text-orange-600 text-xl">
+                  {/* Summary stats in same line */}
+                  <div className="flex items-center justify-center space-x-12 text-center">
+                    <div>
+                      <div className="text-2xl font-bold text-orange-600">
                         {formatNumber(features.summary.sentenceCount)}
                       </div>
-                      <div className="text-gray-600">Sentences</div>
+                      <div className="text-sm text-gray-600">Sentences</div>
                     </div>
-                    <div className="text-center">
-                      <div className="font-semibold text-orange-600 text-xl">
+                    <div>
+                      <div className="text-2xl font-bold text-orange-600">
                         {formatNumber(features.summary.summaryLength)}
                       </div>
-                      <div className="text-gray-600">Characters</div>
+                      <div className="text-sm text-gray-600">Characters</div>
                     </div>
-                    <div className="text-center">
-                      <div className="font-semibold text-orange-600 text-xl">
+                    <div>
+                      <div className="text-2xl font-bold text-orange-600">
                         {formatNumber(features.summary.originalLength)}
                       </div>
-                      <div className="text-gray-600">Original</div>
+                      <div className="text-sm text-gray-600">Original</div>
                     </div>
-                    <div className="text-center">
-                      <div className="font-semibold text-orange-600 text-xl">
+                    <div>
+                      <div className="text-2xl font-bold text-orange-600">
                         {features.summary.compressionRatio || 'N/A'}
                       </div>
-                      <div className="text-gray-600">Ratio</div>
+                      <div className="text-sm text-gray-600">Ratio</div>
                     </div>
                   </div>
                 </>
@@ -293,16 +294,17 @@ const ComprehensiveResults: React.FC<ComprehensiveResultsProps> = ({ result }) =
             </div>
             
             <div className="bg-cyan-50 rounded-lg p-6 border border-cyan-200">
+              {/* Language info in same line */}
               <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-xl font-bold text-cyan-800">
+                <div className="flex items-center space-x-4">
+                  <div className="text-2xl font-bold text-cyan-800">
                     {features.language.name || features.language.detectedLanguage?.name || 'Unknown'}
                   </div>
-                  <div className="text-sm text-cyan-600 mt-1">
-                    ISO Code: {features.language.iso6391Name || features.language.detectedLanguage?.iso6391Name || 'N/A'}
+                  <div className="text-sm text-cyan-600">
+                    ISO: {features.language.iso6391Name || features.language.detectedLanguage?.iso6391Name || 'N/A'}
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="flex items-center space-x-2">
                   <div className="text-2xl font-bold text-cyan-600">
                     {formatPercentage(
                       features.language.confidence || 
