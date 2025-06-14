@@ -25,15 +25,19 @@ class AuthService {
       throw new Error('Login failed - no user data returned');
     }
 
-    // Get user profile
+    // Get user profile using maybeSingle() to handle missing profiles
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', data.user.id)
-      .single();
+      .maybeSingle();
 
     if (profileError) {
       throw new Error('Failed to fetch user profile');
+    }
+
+    if (!profile) {
+      throw new Error('User profile not found. Please contact support.');
     }
 
     const user: User = {
@@ -70,14 +74,18 @@ class AuthService {
       throw new Error('Registration failed - no user data returned');
     }
 
-    // Get user profile (should be created by trigger)
+    // Get user profile (should be created by trigger) using maybeSingle()
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', data.user.id)
-      .single();
+      .maybeSingle();
 
     if (profileError) {
+      throw new Error('Failed to fetch user profile');
+    }
+
+    if (!profile) {
       // If profile doesn't exist, create it manually
       const { data: newProfile, error: createError } = await supabase
         .from('profiles')
@@ -129,15 +137,19 @@ class AuthService {
       throw new Error('Token verification failed');
     }
 
-    // Get user profile
+    // Get user profile using maybeSingle() to handle missing profiles
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (profileError) {
       throw new Error('Failed to fetch user profile');
+    }
+
+    if (!profile) {
+      throw new Error('User profile not found. Please contact support.');
     }
 
     return {
@@ -205,13 +217,14 @@ class AuthService {
       return null;
     }
 
+    // Use maybeSingle() to handle missing profiles gracefully
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (error) {
+    if (error || !profile) {
       return null;
     }
 
