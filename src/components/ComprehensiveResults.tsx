@@ -24,7 +24,6 @@ interface ComprehensiveResultsProps {
 }
 
 const ComprehensiveResults: React.FC<ComprehensiveResultsProps> = ({ result }) => {
-  // Safely handle features that might be null or undefined
   const features = result.features || {};
 
   const getSentimentIcon = (sentiment: string) => {
@@ -68,62 +67,60 @@ const ComprehensiveResults: React.FC<ComprehensiveResultsProps> = ({ result }) =
     return colors[category.toLowerCase() as keyof typeof colors] || colors.default;
   };
 
-  // Helper function to safely format numbers
   const formatNumber = (value: any, defaultValue: number = 0): number => {
     const num = Number(value);
     return isNaN(num) ? defaultValue : num;
   };
 
-  // Helper function to safely format percentages
   const formatPercentage = (value: any, defaultValue: number = 0): string => {
     const num = formatNumber(value, defaultValue);
     return `${(num * 100).toFixed(1)}%`;
   };
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6 md:p-8">
-      <div className="flex items-center mb-6">
+    <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
+      <div className="flex items-center mb-8">
         <CheckCircle className="w-6 h-6 text-green-500 mr-3" />
         <h2 className="text-2xl font-bold text-gray-800">Comprehensive Analysis Results</h2>
       </div>
 
       {/* Overview Stats */}
-      <div className="grid md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-4">
-          <div className="text-2xl font-bold text-blue-600">{formatNumber(result.wordCount)}</div>
-          <div className="text-sm text-blue-700">Words</div>
+      <div className="grid md:grid-cols-4 gap-6 mb-10">
+        <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-6">
+          <div className="text-3xl font-bold text-blue-600">{formatNumber(result.wordCount)}</div>
+          <div className="text-sm text-blue-700 mt-1">Words</div>
         </div>
-        <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-4">
-          <div className="text-2xl font-bold text-green-600">{formatNumber(result.characterCount)}</div>
-          <div className="text-sm text-green-700">Characters</div>
+        <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-6">
+          <div className="text-3xl font-bold text-green-600">{formatNumber(result.characterCount)}</div>
+          <div className="text-sm text-green-700 mt-1">Characters</div>
         </div>
-        <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl p-4">
-          <div className="text-2xl font-bold text-purple-600">{Object.keys(features).length}</div>
-          <div className="text-sm text-purple-700">Features Analyzed</div>
+        <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl p-6">
+          <div className="text-3xl font-bold text-purple-600">{Object.keys(features).length}</div>
+          <div className="text-sm text-purple-700 mt-1">Features Analyzed</div>
         </div>
-        <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl p-4">
-          <div className="text-2xl font-bold text-orange-600">
+        <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl p-6">
+          <div className="text-3xl font-bold text-orange-600">
             {result.timestamp ? new Date(result.timestamp).toLocaleTimeString() : 'N/A'}
           </div>
-          <div className="text-sm text-orange-700">Analysis Time</div>
+          <div className="text-sm text-orange-700 mt-1">Analysis Time</div>
         </div>
       </div>
 
       {/* Feature Results */}
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* Sentiment Analysis */}
         {features.sentiment && (
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
-            <div className="flex items-center mb-4">
+          <div className="bg-white rounded-xl p-8 border border-gray-200 shadow-sm">
+            <div className="flex items-center mb-6">
               <BarChart3 className="w-6 h-6 text-blue-600 mr-3" />
               <h3 className="text-xl font-bold text-gray-800">Sentiment Analysis</h3>
             </div>
             
-            <div className={`rounded-lg p-4 border-2 ${getSentimentColor(features.sentiment.sentiment)}`}>
-              <div className="flex items-center justify-between mb-3">
+            <div className={`rounded-lg p-6 border-2 ${getSentimentColor(features.sentiment.sentiment)}`}>
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center">
                   {getSentimentIcon(features.sentiment.sentiment)}
-                  <span className="ml-2 text-lg font-bold capitalize">
+                  <span className="ml-3 text-lg font-bold capitalize">
                     {features.sentiment.sentiment}
                   </span>
                 </div>
@@ -136,7 +133,7 @@ const ComprehensiveResults: React.FC<ComprehensiveResultsProps> = ({ result }) =
               </div>
               
               {features.sentiment.confidenceScores && (
-                <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="grid grid-cols-3 gap-4 text-sm">
                   <div className="text-center">
                     <div className="font-semibold text-green-600">
                       {formatPercentage(features.sentiment.confidenceScores.positive)}
@@ -163,27 +160,27 @@ const ComprehensiveResults: React.FC<ComprehensiveResultsProps> = ({ result }) =
 
         {/* Key Phrases */}
         {features.keyPhrases && (
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
-            <div className="flex items-center mb-4">
+          <div className="bg-white rounded-xl p-8 border border-gray-200 shadow-sm">
+            <div className="flex items-center mb-6">
               <MessageSquare className="w-6 h-6 text-green-600 mr-3" />
               <h3 className="text-xl font-bold text-gray-800">Key Phrases</h3>
-              <span className="ml-auto bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm font-medium">
+              <span className="ml-auto bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
                 {formatNumber(features.keyPhrases.count)} found
               </span>
             </div>
             
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-3">
               {features.keyPhrases.keyPhrases && features.keyPhrases.keyPhrases.length > 0 ? (
                 features.keyPhrases.keyPhrases.map((phrase, index) => (
                   <span
                     key={index}
-                    className="bg-green-50 text-green-800 px-3 py-1 rounded-full text-sm font-medium border border-green-200"
+                    className="bg-green-50 text-green-800 px-4 py-2 rounded-full text-sm font-medium border border-green-200"
                   >
                     {phrase}
                   </span>
                 ))
               ) : (
-                <div className="text-gray-500 text-center py-4 w-full">
+                <div className="text-gray-500 text-center py-8 w-full">
                   No key phrases found in the text.
                 </div>
               )}
@@ -193,29 +190,29 @@ const ComprehensiveResults: React.FC<ComprehensiveResultsProps> = ({ result }) =
 
         {/* Named Entities */}
         {features.entities && (
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
-            <div className="flex items-center mb-4">
+          <div className="bg-white rounded-xl p-8 border border-gray-200 shadow-sm">
+            <div className="flex items-center mb-6">
               <Users className="w-6 h-6 text-purple-600 mr-3" />
               <h3 className="text-xl font-bold text-gray-800">Named Entities</h3>
-              <span className="ml-auto bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-sm font-medium">
+              <span className="ml-auto bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
                 {formatNumber(features.entities.totalEntities)} found
               </span>
             </div>
             
             {features.entities.entitiesByCategory && Object.keys(features.entities.entitiesByCategory).length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {Object.entries(features.entities.entitiesByCategory).map(([category, entities]) => (
                   <div key={category}>
-                    <h4 className="font-semibold text-gray-700 mb-2 flex items-center">
+                    <h4 className="font-semibold text-gray-700 mb-3 flex items-center">
                       {getEntityIcon(category)}
                       <span className="ml-2 capitalize">{category}</span>
                       <span className="ml-2 text-sm text-gray-500">({entities.length})</span>
                     </h4>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-3">
                       {entities.map((entity, index) => (
                         <span
                           key={index}
-                          className={`px-3 py-1 rounded-full text-sm font-medium ${getEntityColor(category)}`}
+                          className={`px-4 py-2 rounded-full text-sm font-medium ${getEntityColor(category)}`}
                           title={`Confidence: ${formatPercentage(entity.confidenceScore)}`}
                         >
                           {entity.text}
@@ -226,7 +223,7 @@ const ComprehensiveResults: React.FC<ComprehensiveResultsProps> = ({ result }) =
                 ))}
               </div>
             ) : (
-              <div className="text-gray-500 text-center py-4">
+              <div className="text-gray-500 text-center py-8">
                 No named entities found in the text.
               </div>
             )}
@@ -235,43 +232,43 @@ const ComprehensiveResults: React.FC<ComprehensiveResultsProps> = ({ result }) =
 
         {/* Text Summary */}
         {features.summary && (
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
-            <div className="flex items-center mb-4">
+          <div className="bg-white rounded-xl p-8 border border-gray-200 shadow-sm">
+            <div className="flex items-center mb-6">
               <FileText className="w-6 h-6 text-orange-600 mr-3" />
               <h3 className="text-xl font-bold text-gray-800">Text Summary</h3>
-              <span className="ml-auto bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-sm font-medium">
+              <span className="ml-auto bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium">
                 {features.summary.compressionRatio || 'N/A'} compression
               </span>
             </div>
             
-            <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+            <div className="bg-orange-50 rounded-lg p-6 border border-orange-200">
               {features.summary.summary ? (
                 <>
-                  <p className="text-gray-800 leading-relaxed mb-4">
+                  <p className="text-gray-800 leading-relaxed mb-6 text-lg">
                     {features.summary.summary}
                   </p>
                   
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
                     <div className="text-center">
-                      <div className="font-semibold text-orange-600">
+                      <div className="font-semibold text-orange-600 text-xl">
                         {formatNumber(features.summary.sentenceCount)}
                       </div>
                       <div className="text-gray-600">Sentences</div>
                     </div>
                     <div className="text-center">
-                      <div className="font-semibold text-orange-600">
+                      <div className="font-semibold text-orange-600 text-xl">
                         {formatNumber(features.summary.summaryLength)}
                       </div>
                       <div className="text-gray-600">Characters</div>
                     </div>
                     <div className="text-center">
-                      <div className="font-semibold text-orange-600">
+                      <div className="font-semibold text-orange-600 text-xl">
                         {formatNumber(features.summary.originalLength)}
                       </div>
                       <div className="text-gray-600">Original</div>
                     </div>
                     <div className="text-center">
-                      <div className="font-semibold text-orange-600">
+                      <div className="font-semibold text-orange-600 text-xl">
                         {features.summary.compressionRatio || 'N/A'}
                       </div>
                       <div className="text-gray-600">Ratio</div>
@@ -279,7 +276,7 @@ const ComprehensiveResults: React.FC<ComprehensiveResultsProps> = ({ result }) =
                   </div>
                 </>
               ) : (
-                <div className="text-gray-500 text-center py-4">
+                <div className="text-gray-500 text-center py-8">
                   Summary could not be generated for this text.
                 </div>
               )}
@@ -289,24 +286,24 @@ const ComprehensiveResults: React.FC<ComprehensiveResultsProps> = ({ result }) =
 
         {/* Language Detection */}
         {features.language && (
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
-            <div className="flex items-center mb-4">
+          <div className="bg-white rounded-xl p-8 border border-gray-200 shadow-sm">
+            <div className="flex items-center mb-6">
               <Globe className="w-6 h-6 text-cyan-600 mr-3" />
               <h3 className="text-xl font-bold text-gray-800">Language Detection</h3>
             </div>
             
-            <div className="bg-cyan-50 rounded-lg p-4 border border-cyan-200">
+            <div className="bg-cyan-50 rounded-lg p-6 border border-cyan-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-lg font-bold text-cyan-800">
+                  <div className="text-xl font-bold text-cyan-800">
                     {features.language.name || features.language.detectedLanguage?.name || 'Unknown'}
                   </div>
-                  <div className="text-sm text-cyan-600">
+                  <div className="text-sm text-cyan-600 mt-1">
                     ISO Code: {features.language.iso6391Name || features.language.detectedLanguage?.iso6391Name || 'N/A'}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xl font-bold text-cyan-600">
+                  <div className="text-2xl font-bold text-cyan-600">
                     {formatPercentage(
                       features.language.confidence || 
                       features.language.detectedLanguage?.confidenceScore
@@ -321,8 +318,8 @@ const ComprehensiveResults: React.FC<ComprehensiveResultsProps> = ({ result }) =
       </div>
 
       {/* Analysis Summary */}
-      <div className="mt-8 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-6">
-        <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
+      <div className="mt-10 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-8">
+        <h4 className="font-semibold text-gray-800 mb-4 flex items-center">
           <Zap className="w-5 h-5 mr-2" />
           Analysis Summary
         </h4>

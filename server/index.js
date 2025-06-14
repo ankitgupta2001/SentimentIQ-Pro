@@ -71,6 +71,9 @@ initializeAzureConfig();
 const callAzureLanguageAPI = async (requestBody) => {
   const url = `${azureEndpoint}language/:analyze-text?api-version=2023-04-01`;
   
+  console.log('🔵 Making Azure API call to:', url);
+  console.log('🔵 Request body:', JSON.stringify(requestBody, null, 2));
+  
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -80,14 +83,19 @@ const callAzureLanguageAPI = async (requestBody) => {
     body: JSON.stringify(requestBody)
   });
 
+  console.log('🔵 Azure API response status:', response.status);
+
   if (!response.ok) {
     const errorText = await response.text();
+    console.error('❌ Azure API error response:', errorText);
     throw new Error(`Azure API error (${response.status}): ${errorText}`);
   }
 
   const result = await response.json();
+  console.log('✅ Azure API response:', JSON.stringify(result, null, 2));
   
   if (result.results?.errors?.length > 0) {
+    console.error('❌ Azure API returned errors:', result.results.errors);
     throw new Error(`Azure API error: ${JSON.stringify(result.results.errors)}`);
   }
 
@@ -152,8 +160,21 @@ const recognizeEntities = async (text) => {
   };
 };
 
-// Text Summarization
+// Text Summarization - Fixed implementation
 const summarizeText = async (text) => {
+  console.log('🔵 Starting text summarization for text length:', text.length);
+  
+  // Calculate appropriate sentence count based on text length
+  const wordCount = text.trim().split(/\s+/).length;
+  let sentenceCount = 3; // default
+  
+  if (wordCount > 1000) sentenceCount = 5;
+  else if (wordCount > 500) sentenceCount = 4;
+  else if (wordCount > 200) sentenceCount = 3;
+  else sentenceCount = 2;
+  
+  console.log(`🔵 Text has ${wordCount} words, requesting ${sentenceCount} sentences`);
+
   const requestBody = {
     kind: "ExtractiveSummarization",
     analysisInput: {
@@ -161,13 +182,55 @@ const summarizeText = async (text) => {
     },
     parameters: {
       modelVersion: "latest",
-      sentenceCount: 3,
+      sentenceCount: sentenceCount,
       sortBy: "Rank"
     }
   };
 
-  const result = await callAzureLanguageAPI(requestBody);
-  return result.results.documents[0];
+  try {
+    const result = await callAzureLanguageAPI(requestBody);
+    const summaryResult = result.results.documents[0];
+    
+    console.log('✅ Summarization successful, sentences found:', summaryResult.sentences?.length || 0);
+    
+    if (!summaryResult.sentences || summaryResult.sentences.length === 0) {
+      console.log('⚠️ No sentences returned from Azure summarization');
+      return {
+        summary: "Unable to generate summary for this text.",
+        sentences: [],
+        originalLength: text.length,
+        summaryLength: 0,
+        compressionRatio: "0%",
+        sentenceCount: 0
+      };
+    }
+    
+    const summary = summaryResult.sentences.map(sentence => sentence.text).join(' ');
+    const compressionRatio = (summary.length / text.length * 100).toFixed(1);
+    
+    return {
+      summary: summary,
+      sentences: summaryResult.sentences,
+      originalLength: text.length,
+      summaryLength: summary.length,
+      compressionRatio: `${compressionRatio}%`,
+      sentenceCount: summaryResult.sentences.length
+    };
+    
+  } catch (error) {
+    console.error('❌ Summarization failed:', error.message);
+    
+    // Return a fallback response instead of throwing
+    return {
+      summary: "Text summarization is temporarily unavailable. Please try again later.",
+      sentences: [],
+      originalLength: text.length,
+      summaryLength: 0,
+      compressionRatio: "0%",
+      sentenceCount: 0,
+      error: error.message
+    };
+  }
 };
 
 // Language Detection
@@ -327,6 +390,7 @@ app.post('/api/analyze-text', async (req, res) => {
     // Process results
     analysisResults.forEach(result => {
       if (result.error) {
+        console.error(`❌ ${result.type} analysis failed:`, result.error);
         results.features[result.type] = { error: result.error };
       } else {
         results.features[result.type] = result.data;
@@ -503,19 +567,11 @@ app.post('/api/summarize-text', async (req, res) => {
       });
     }
 
+    console.log('📝 Processing summarization request for text length:', text.length);
     const result = await summarizeText(text);
     
-    const summary = result.sentences.map(sentence => sentence.text).join(' ');
-    const compressionRatio = (summary.length / text.length * 100).toFixed(1);
-
-    res.json({
-      summary: summary,
-      sentences: result.sentences,
-      originalLength: text.length,
-      summaryLength: summary.length,
-      compressionRatio: `${compressionRatio}%`,
-      sentenceCount: result.sentences.length
-    });
+    console.log('✅ Summarization completed, returning result');
+    res.json(result);
 
   } catch (error) {
     console.error('❌ Text summarization error:', error);
