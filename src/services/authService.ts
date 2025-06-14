@@ -12,21 +12,27 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     // Configure the redirect URL for email confirmation
     redirectTo: `${window.location.origin}/auth/callback`,
-    // Disable email confirmation for development (you can enable this in production)
+    // Enable automatic session management
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    // Set storage key to ensure consistency
+    storageKey: 'supabase.auth.token'
   }
 });
 
 class AuthService {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
+    console.log('🔄 AuthService: Attempting login for', credentials.email);
+    
     const { data, error } = await supabase.auth.signInWithPassword({
       email: credentials.email,
       password: credentials.password,
     });
 
     if (error) {
+      console.error('❌ AuthService: Login error:', error.message);
+      
       // Handle specific email confirmation error
       if (error.message.includes('Email not confirmed') || error.message.includes('email_not_confirmed')) {
         throw new Error('Please check your email and click the confirmation link before signing in. Check your spam folder if you don\'t see the email.');
@@ -38,6 +44,8 @@ class AuthService {
       throw new Error('Login failed - no user data returned');
     }
 
+    console.log('✅ AuthService: Login successful, getting profile for user:', data.user.id);
+
     // Get user profile using maybeSingle() to handle missing profiles
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -46,10 +54,12 @@ class AuthService {
       .maybeSingle();
 
     if (profileError) {
+      console.error('❌ AuthService: Profile fetch error:', profileError);
       throw new Error('Failed to fetch user profile');
     }
 
     if (!profile) {
+      console.error('❌ AuthService: No profile found for user:', data.user.id);
       throw new Error('User profile not found. Please contact support.');
     }
 
@@ -61,6 +71,8 @@ class AuthService {
       createdAt: profile.created_at
     };
 
+    console.log('✅ AuthService: Profile loaded:', user.name, user.tier);
+
     return {
       user,
       token: data.session?.access_token || ''
@@ -68,7 +80,7 @@ class AuthService {
   }
 
   async register(credentials: RegisterCredentials): Promise<AuthResponse> {
-    console.log('Registering user with tier:', credentials.tier);
+    console.log('🔄 AuthService: Registering user with tier:', credentials.tier);
     
     const { data, error } = await supabase.auth.signUp({
       email: credentials.email,
@@ -85,6 +97,7 @@ class AuthService {
     });
 
     if (error) {
+      console.error('❌ AuthService: Registration error:', error.message);
       throw new Error(error.message);
     }
 
@@ -94,8 +107,11 @@ class AuthService {
 
     // Check if email confirmation is required
     if (!data.session) {
+      console.log('⚠️ AuthService: Email confirmation required');
       throw new Error('CONFIRMATION_REQUIRED');
     }
+
+    console.log('✅ AuthService: Registration successful, getting profile for user:', data.user.id);
 
     // Get user profile (should be created by trigger) using maybeSingle()
     const { data: profile, error: profileError } = await supabase
@@ -105,12 +121,12 @@ class AuthService {
       .maybeSingle();
 
     if (profileError) {
-      console.error('Profile fetch error:', profileError);
+      console.error('❌ AuthService: Profile fetch error:', profileError);
       throw new Error('Failed to fetch user profile');
     }
 
     if (!profile) {
-      console.log('Profile not found, creating manually with tier:', credentials.tier);
+      console.log('⚠️ AuthService: Profile not found, creating manually with tier:', credentials.tier);
       // If profile doesn't exist, create it manually with the correct tier
       const { data: newProfile, error: createError } = await supabase
         .from('profiles')
@@ -124,7 +140,7 @@ class AuthService {
         .single();
 
       if (createError) {
-        console.error('Profile creation error:', createError);
+        console.error('❌ AuthService: Profile creation error:', createError);
         throw new Error('Failed to create user profile');
       }
 
@@ -136,6 +152,8 @@ class AuthService {
         createdAt: newProfile.created_at
       };
 
+      console.log('✅ AuthService: Profile created manually:', user.name, user.tier);
+
       return {
         user,
         token: data.session?.access_token || ''
@@ -144,7 +162,7 @@ class AuthService {
 
     // If profile exists but has wrong tier, update it
     if (profile.tier !== credentials.tier) {
-      console.log('Updating profile tier from', profile.tier, 'to', credentials.tier);
+      console.log('🔄 AuthService: Updating profile tier from', profile.tier, 'to', credentials.tier);
       const { data: updatedProfile, error: updateError } = await supabase
         .from('profiles')
         .update({ tier: credentials.tier })
@@ -153,9 +171,10 @@ class AuthService {
         .single();
 
       if (updateError) {
-        console.error('Profile update error:', updateError);
+        console.error('❌ AuthService: Profile update error:', updateError);
       } else {
         profile.tier = updatedProfile.tier;
+        console.log('✅ AuthService: Profile tier updated to:', profile.tier);
       }
     }
 
@@ -166,6 +185,8 @@ class AuthService {
       tier: profile.tier,
       createdAt: profile.created_at
     };
+
+    console.log('✅ AuthService: Registration complete:', user.name, user.tier);
 
     return {
       user,
@@ -219,10 +240,13 @@ class AuthService {
   }
 
   async logout(): Promise<void> {
+    console.log('🔄 AuthService: Logging out user');
     const { error } = await supabase.auth.signOut();
     if (error) {
+      console.error('❌ AuthService: Logout error:', error.message);
       throw new Error(error.message);
     }
+    console.log('✅ AuthService: Logout successful');
   }
 
   async getAnalysisHistory(): Promise<any[]> {
@@ -268,11 +292,21 @@ class AuthService {
   }
 
   async getCurrentUser(): Promise<User | null> {
-    const { data: { user } } = await supabase.auth.getUser();
+    console.log('🔄 AuthService: Getting current user');
     
-    if (!user) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError) {
+      console.error('❌ AuthService: Error getting user:', userError.message);
       return null;
     }
+    
+    if (!user) {
+      console.log('ℹ️ AuthService: No authenticated user found');
+      return null;
+    }
+
+    console.log('✅ AuthService: Found authenticated user:', user.id);
 
     // Use maybeSingle() to handle missing profiles gracefully
     const { data: profile, error } = await supabase
@@ -281,17 +315,26 @@ class AuthService {
       .eq('id', user.id)
       .maybeSingle();
 
-    if (error || !profile) {
+    if (error) {
+      console.error('❌ AuthService: Error fetching profile:', error.message);
       return null;
     }
 
-    return {
+    if (!profile) {
+      console.log('⚠️ AuthService: No profile found for user:', user.id);
+      return null;
+    }
+
+    const userData: User = {
       id: profile.id,
       email: profile.email,
       name: profile.name,
       tier: profile.tier,
       createdAt: profile.created_at
     };
+
+    console.log('✅ AuthService: Profile loaded:', userData.name, userData.tier);
+    return userData;
   }
 
   async updateProfile(updates: Partial<Pick<User, 'name' | 'tier'>>): Promise<User> {
