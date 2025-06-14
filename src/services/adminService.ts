@@ -45,17 +45,31 @@ class AdminService {
 
     // Store in database
     try {
+      const currentUserId = await this.getCurrentUserId();
+      const sessionId = this.getSessionId();
+      
+      // Build the insert object conditionally
+      const insertData: any = {
+        level,
+        message,
+        category,
+        details: details || {},
+        session_id: sessionId
+      };
+
+      // Only add user_id if it exists and is not null
+      if (currentUserId) {
+        insertData.user_id = currentUserId;
+      }
+
+      // Only add stack if it exists
+      if (error?.stack) {
+        insertData.stack = error.stack;
+      }
+
       await supabase
         .from('system_logs')
-        .insert({
-          level,
-          message,
-          category,
-          details: details || {},
-          stack: error?.stack,
-          user_id: await this.getCurrentUserId(),
-          session_id: this.getSessionId()
-        });
+        .insert(insertData);
     } catch (err) {
       console.error('Failed to store log in database:', err);
     }
@@ -73,15 +87,25 @@ class AdminService {
   ): Promise<void> {
     try {
       const sessionId = this.getSessionId();
-      const visitorData = {
+      const currentUserId = await this.getCurrentUserId();
+      
+      const visitorData: any = {
         session_id: sessionId,
         ip_address: await this.getClientIP(),
         user_agent: navigator.userAgent,
         page,
-        referrer,
-        user_id: await this.getCurrentUserId(),
         additional_data: additionalData || {}
       };
+
+      // Only add user_id if it exists
+      if (currentUserId) {
+        visitorData.user_id = currentUserId;
+      }
+
+      // Only add referrer if it exists
+      if (referrer) {
+        visitorData.referrer = referrer;
+      }
 
       await supabase
         .from('visitor_logs')
@@ -98,14 +122,23 @@ class AdminService {
     details: Record<string, any>
   ): Promise<void> {
     try {
+      const currentUserId = await this.getCurrentUserId();
+      const sessionId = this.getSessionId();
+      
+      const actionData: any = {
+        session_id: sessionId,
+        type,
+        details
+      };
+
+      // Only add user_id if it exists
+      if (currentUserId) {
+        actionData.user_id = currentUserId;
+      }
+
       await supabase
         .from('visitor_actions')
-        .insert({
-          session_id: this.getSessionId(),
-          type,
-          details,
-          user_id: await this.getCurrentUserId()
-        });
+        .insert(actionData);
     } catch (error) {
       this.logEvent('error', 'Failed to track action', 'system', { type, details }, error as Error);
     }
